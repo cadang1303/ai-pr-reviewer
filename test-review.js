@@ -10,3 +10,5 @@ console.log(c
 console.log(a + b)
 
 b = 5
+
+c = 3
