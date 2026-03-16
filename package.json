@@ -1,0 +1,11 @@
+{
+  "name": "ai-pr-reviewer",
+  "version": "1.0.0",
+  "dependencies": {
+    "@octokit/rest": "^20.1.2",
+    "axios": "^1.13.6",
+    "diff": "^5.1.0",
+    "eslint": "^9.39.4",
+    "openai": "^4.0.0"
+  }
+}
