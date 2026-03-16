@@ -104,7 +104,7 @@ Return markdown review.
     },
     {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${process.env.GITHUB_MODELS_TOKEN}`,
         "Content-Type": "application/json",
       },
     },

@@ -29,5 +29,6 @@ jobs:
         run: node scripts/ai-review.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODELS_TOKEN: ${{ secrets.MODELS_TOKEN}}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
