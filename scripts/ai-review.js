@@ -1,5 +1,5 @@
 const { Octokit } = require("@octokit/rest");
-const axios = require("axios");
+const OpenAI = require("openai");
 const fs = require("fs");
 const crypto = require("crypto");
 const { execSync } = require("child_process");
@@ -7,6 +7,10 @@ const { execSync } = require("child_process");
 const token = process.env.GITHUB_TOKEN;
 const pr = process.env.PR_NUMBER;
 const repo = process.env.REPO;
+const openai = new OpenAI({
+  apiKey: token,
+  baseURL: "https://models.github.ai/inference",
+});
 
 const [owner, repoName] = repo.split("/");
 
@@ -95,22 +99,18 @@ Focus on:
 Return markdown review.
 `;
 
-  const res = await axios.post(
-    "https://models.inference.ai.azure.com/chat/completions",
-    {
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.GITHUB_MODELS_TOKEN}`,
-        "Content-Type": "application/json",
+  const res = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "user",
+        content: prompt,
       },
-    },
-  );
+    ],
+    temperature: 0.2,
+  });
 
-  return res.data.choices[0].message.content;
+  return res.choices[0].message.content;
 }
 
 async function reviewFile(file, cache) {
