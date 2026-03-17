@@ -90,13 +90,26 @@ ${patch}
 ESLint:
 ${eslintResult}
 
-Focus on:
-- bugs
-- performance
-- readability
-- best practices
+Task:
+List ONLY real issues
 
-Return markdown review.
+Rules:
+- Short explaination.
+- Do not repeat code.
+- One line per issue.
+
+Focus on:
+- code convention, syntax
+- bugs
+
+Format:
+
+ISSUES:
+- <line>: <problem>
+
+If no issues return:
+
+ISSUES: NONE
 `;
 
   const res = await openai.chat.completions.create({
@@ -107,7 +120,8 @@ Return markdown review.
         content: prompt,
       },
     ],
-    temperature: 0.2,
+    temperature: 0,
+    max_tokens: 200,
   });
 
   return res.choices[0].message.content;
