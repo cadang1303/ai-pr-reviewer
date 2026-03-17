@@ -2,6 +2,8 @@
   "name": "ai-pr-reviewer",
   "version": "1.0.0",
   "dependencies": {
+    "@babel/parser": "^7.29.2",
+    "@babel/traverse": "^7.29.0",
     "@eslint/css": "^1.0.0",
     "@eslint/js": "^10.0.1",
     "@eslint/json": "^1.1.0",
