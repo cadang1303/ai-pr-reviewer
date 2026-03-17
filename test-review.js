@@ -15,6 +15,7 @@ c = 3
 
 console.log('d', a + c)
 
+console.log(arr)
 const arr = {};
 
 arr.push('a')
