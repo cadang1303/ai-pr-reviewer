@@ -240,16 +240,68 @@ function severityIcon(level) {
   }
 }
 
-function buildCodeFrame(patch, issues) {
-  if (issues.length === 0) return "✅ No issues\n";
+function extractNewFileLines(patch) {
 
   const lines = patch.split("\n");
+
+  let newLine = 0;
+  const result = [];
+
+  for (const line of lines) {
+
+    // hunk header
+    const match = line.match(/\@\@ .* \+(\d+),?/);
+
+    if (match) {
+      newLine = Number(match[1]);
+      continue;
+    }
+
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      result.push({
+        line: newLine,
+        code: line.substring(1),
+      });
+      newLine++;
+      continue;
+    }
+
+    if (line.startsWith("-")) {
+      continue;
+    }
+
+    if (!line.startsWith("\\")) {
+      result.push({
+        line: newLine,
+        code: line.replace(/^ /, ""),
+      });
+      newLine++;
+    }
+
+  }
+
+  return result;
+}
+
+function buildCodeFrame(patch, issues) {
+
+  if (issues.length === 0) {
+    return "✅ No issues\n";
+  }
+
+  const diffLines = extractNewFileLines(patch);
+
+  const map = new Map();
+
+  diffLines.forEach(l => {
+    map.set(l.line, l.code);
+  });
+
   let frame = "```js\n";
 
   for (const issue of issues) {
 
-    const idx = issue.line - 1;
-    const code = lines[idx] || "";
+    const code = map.get(issue.line) || "";
 
     frame += `${issue.line} | ${code}\n`;
     frame += `    ^ ${severityIcon(issue.level)} [${issue.level}] ${issue.message}\n\n`;
