@@ -171,23 +171,47 @@ function formatReviewOutput(raw) {
     .join("\n");
 }
 
-async function upsertSingleComment(body) {
-  const comments = await octokit.issues.listComments({
-    owner,
-    repo: repoName,
-    issue_number: pr,
-  });
+async function deleteOldBotComments() {
 
-  const botComments = comments.data.filter((c) => c.body.startsWith(HEADER));
+  let page = 1;
+  let hasNext = true;
 
-  for (const c of botComments) {
-    await octokit.issues.deleteComment({
+  while (hasNext) {
+
+    const res = await octokit.issues.listComments({
       owner,
       repo: repoName,
-      comment_id: c.id,
+      issue_number: pr,
+      per_page: 100,
+      page,
     });
-  }
 
+    const comments = res.data;
+
+    for (const c of comments) {
+
+      // chỉ xóa comment của bot + đúng format
+      const isBot = c.user.type === "Bot";
+      const isOurComment = c.body && c.body.startsWith(HEADER);
+
+      if (isBot && isOurComment) {
+
+        await octokit.issues.deleteComment({
+          owner,
+          repo: repoName,
+          comment_id: c.id,
+        });
+
+        console.log("Deleted:", c.id);
+      }
+    }
+
+    hasNext = comments.length === 100;
+    page++;
+  }
+}
+
+async function postFreshComment(body) {
   await octokit.issues.createComment({
     owner,
     repo: repoName,
@@ -196,25 +220,7 @@ async function upsertSingleComment(body) {
   });
 }
 
-async function main() {
-  const files = await getChangedFiles();
-
-  const cache = loadCache();
-
-  const targets = files.slice(0, MAX_FILES);
-
-  const results = await Promise.all(
-    targets.map((file) => reviewFile(file, cache))
-  );
-
-  saveCache(cache);
-
-  const validReviews = results.filter((r) => r !== null);
-
-  if (validReviews.length === 0) {
-    console.log("No files to review");
-    return;
-  }
+function buildComment(validReviews) {
   validReviews.sort((a, b) => a.file.localeCompare(b.file));
   let comment = `## 🤖 AI Review (auto-generated)
 
@@ -235,13 +241,36 @@ async function main() {
     comment = comment.slice(0, 60000) + "\n...truncated";
   }
 
+  return comment;
+}
+
+async function main() {
+  const files = await getChangedFiles();
+
+  const cache = loadCache();
+
+  const targets = files.slice(0, MAX_FILES);
+
+  const results = await Promise.all(
+    targets.map((file) => reviewFile(file, cache))
+  );
+
+  saveCache(cache);
+
+  const validReviews = results.filter((r) => r !== null);
+
+
+  let comment = buildComment(validReviews);
+
+  await deleteOldBotComments();
   if (validReviews.length === 0) {
-    await upsertSingleComment(`${HEADER}
+    await postFreshComment(`${HEADER}
   
   ✅ No issues found`);
     return;
   }
-  await upsertSingleComment(comment);
+
+  await postFreshComment(comment);
 }
 
 main();
