@@ -1,6 +1,12 @@
 {
   "name": "ai-pr-reviewer",
   "version": "1.0.0",
+  "bin": {
+    "ai-pr-reviewer": "bin/ai-pr-reviewer.js"
+  },
+  "scripts": {
+    "review": "ai-pr-reviewer review"
+  },
   "dependencies": {
     "@babel/parser": "^7.29.2",
     "@babel/traverse": "^7.29.0",
@@ -13,6 +19,7 @@
     "diff": "^5.1.0",
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
-    "openai": "^4.104.0"
+    "openai": "^4.104.0",
+    "yaml": "^2.8.1"
   }
 }
