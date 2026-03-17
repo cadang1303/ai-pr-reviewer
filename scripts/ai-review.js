@@ -86,7 +86,7 @@ You are a senior software engineer reviewing a pull request.
 
 File: ${file}
 
-Diff:
+Code:
 ${patch}
 
 ESLint:
@@ -96,19 +96,23 @@ Task:
 List ONLY real issues
 
 Rules:
-- Short explaination.
-- Do not repeat code.
-- One line per issue.
+- Show only problematic lines
+- Keep it short
+- Use:
+  ❌ HIGH
+  ⚠️ MEDIUM
+  💡 LOW
+- No explanation outside code block
 
 Focus on:
 - code convention, syntax
 - bugs
 
-Return ONLY issues in this format:
+Return issues in this format:
 
-- ❌ [HIGH] line <number>: <short issue>
-- ⚠️ [MEDIUM] line <number>: <short issue>
-- 💡 [LOW] line <number>: <short issue>
+- HIGH line <number>: <message>
+- MEDIUM line <number>: <message>
+- LOW line <number>: <message>
 
 If no issues return:
 
@@ -150,26 +154,18 @@ async function reviewFile(file, cache) {
 
   const review = await aiReview(file.filename, file.patch, eslintResult);
 
+  const issues = parseIssues(review);
+
+  const codeFrame = buildCodeFrame(file.patch, issues);
+
   cache[file.filename] = hash;
 
   return {
     file: file.filename,
-    review,
+    frame: codeFrame,
   };
 }
 
-function formatReviewOutput(raw) {
-
-  if (!raw || raw.includes("NONE")) {
-    return "✅ No issues";
-  }
-
-  return raw
-    .split("\n")
-    .filter(line => line.trim().startsWith("-"))
-    .map(line => line.trim())
-    .join("\n");
-}
 
 async function deleteOldBotComments() {
 
@@ -211,6 +207,60 @@ async function deleteOldBotComments() {
   }
 }
 
+function parseIssues(text) {
+  if (!text || text.includes("NONE")) return [];
+
+  return text
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => l.startsWith("-"))
+    .map(line => {
+
+      const m = line.match(/(HIGH|MEDIUM|LOW) line (\d+): (.+)/i);
+      if (!m) return null;
+
+      return {
+        level: m[1].toUpperCase(),
+        line: Number(m[2]),
+        message: m[3]
+      };
+
+    })
+    .filter(Boolean);
+}
+
+function severityIcon(level) {
+  switch (level) {
+    case "HIGH":
+      return "❌";
+    case "MEDIUM":
+      return "⚠️";
+    default:
+      return "💡";
+  }
+}
+
+function buildCodeFrame(patch, issues) {
+  if (issues.length === 0) return "✅ No issues\n";
+
+  const lines = patch.split("\n");
+  let frame = "```js\n";
+
+  for (const issue of issues) {
+
+    const idx = issue.line - 1;
+    const code = lines[idx] || "";
+
+    frame += `${issue.line} | ${code}\n`;
+    frame += `    ^ ${severityIcon(issue.level)} [${issue.level}] ${issue.message}\n\n`;
+
+  }
+
+  frame += "```\n";
+
+  return frame;
+}
+
 async function postFreshComment(body) {
   await octokit.issues.createComment({
     owner,
@@ -220,19 +270,19 @@ async function postFreshComment(body) {
   });
 }
 
-function buildComment(validReviews) {
-  validReviews.sort((a, b) => a.file.localeCompare(b.file));
+function buildComment(reviews) {
+  reviews.sort((a, b) => a.file.localeCompare(b.file));
   let comment = `## 🤖 AI Review (auto-generated)
 
   _Last updated: ${new Date().toISOString()}_
   
   `;
   
-  for (const r of validReviews) {
+  for (const r of reviews) {
   
     comment += `### 📄 ${r.file}\n\n`;
   
-    comment += formatReviewOutput(r.review);
+    comment += r.frame;
   
     comment += "\n\n---\n\n";
   }
