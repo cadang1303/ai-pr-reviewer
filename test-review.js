@@ -14,3 +14,7 @@ b = 5
 c = 3
 
 console.log('d', a + c)
+
+const arr = {};
+
+arr.push('a')
