@@ -29,6 +29,8 @@ const IGNORE_FOLDERS = [
   "out/",
 ];
 
+const HEADER = "## 🤖 AI Review (auto-generated)";
+
 const MAX_FILES = 20;
 const MAX_PATCH = 6000;
 
@@ -102,10 +104,11 @@ Focus on:
 - code convention, syntax
 - bugs
 
-Format:
+Return ONLY issues in this format:
 
-ISSUES:
-- <line>: <problem>
+- ❌ [HIGH] line <number>: <short issue>
+- ⚠️ [MEDIUM] line <number>: <short issue>
+- 💡 [LOW] line <number>: <short issue>
 
 If no issues return:
 
@@ -155,6 +158,44 @@ async function reviewFile(file, cache) {
   };
 }
 
+function formatReviewOutput(raw) {
+
+  if (!raw || raw.includes("NONE")) {
+    return "✅ No issues";
+  }
+
+  return raw
+    .split("\n")
+    .filter(line => line.trim().startsWith("-"))
+    .map(line => line.trim())
+    .join("\n");
+}
+
+async function upsertSingleComment(body) {
+  const comments = await octokit.issues.listComments({
+    owner,
+    repo: repoName,
+    issue_number: pr,
+  });
+
+  const botComments = comments.data.filter((c) => c.body.startsWith(HEADER));
+
+  for (const c of botComments) {
+    await octokit.issues.deleteComment({
+      owner,
+      repo: repoName,
+      comment_id: c.id,
+    });
+  }
+
+  await octokit.issues.createComment({
+    owner,
+    repo: repoName,
+    issue_number: pr,
+    body,
+  });
+}
+
 async function main() {
   const files = await getChangedFiles();
 
@@ -163,7 +204,7 @@ async function main() {
   const targets = files.slice(0, MAX_FILES);
 
   const results = await Promise.all(
-    targets.map((file) => reviewFile(file, cache)),
+    targets.map((file) => reviewFile(file, cache))
   );
 
   saveCache(cache);
@@ -174,20 +215,33 @@ async function main() {
     console.log("No files to review");
     return;
   }
+  validReviews.sort((a, b) => a.file.localeCompare(b.file));
+  let comment = `## 🤖 AI Review (auto-generated)
 
-  let comment = "";
-
+  _Last updated: ${new Date().toISOString()}_
+  
+  `;
+  
   for (const r of validReviews) {
-    comment += `## Review for ${r.file}\n`;
-    comment += r.review + "\n\n";
+  
+    comment += `### 📄 ${r.file}\n\n`;
+  
+    comment += formatReviewOutput(r.review);
+  
+    comment += "\n\n---\n\n";
   }
 
-  await octokit.issues.createComment({
-    owner,
-    repo: repoName,
-    issue_number: pr,
-    body: comment,
-  });
+  if (comment.length > 60000) {
+    comment = comment.slice(0, 60000) + "\n...truncated";
+  }
+
+  if (validReviews.length === 0) {
+    await upsertSingleComment(`${HEADER}
+  
+  ✅ No issues found`);
+    return;
+  }
+  await upsertSingleComment(comment);
 }
 
 main();
