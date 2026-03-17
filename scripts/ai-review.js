@@ -192,7 +192,7 @@ async function deleteOldBotComments() {
 
       // chỉ xóa comment của bot + đúng format
       const isBot = c.user.type === "Bot";
-      const isOurComment = c.body && c.body.startsWith(HEADER);
+      const isOurComment = c.body && c.body.startsWith(HEADER || `## Review for test-review.js`);
 
       if (isBot && isOurComment) {
 
