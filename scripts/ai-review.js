@@ -265,7 +265,7 @@ async function reviewFile(file, cache) {
     if (issues.length) {
       const frame = renderFunctionFrame(fn, issues);
 
-      aiResults.push(frame);
+      aiResults.push({ frame, issues });
     }
   }
   cache[file.filename] = hash;
@@ -387,7 +387,10 @@ function buildComment(results) {
     if (r.ai && r.ai.length) {
       body += "### 🧠 AI Review\n\n";
 
-      r.ai.forEach((frame) => {
+      r.ai.forEach(({issues, frame}) => {
+        if (issues.length === 0) {
+          body += "✅ No issues\n";
+        }
         body += frame + "\n";
       });
     }
